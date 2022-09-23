@@ -1,0 +1,98 @@
+VIDIOC_QUERYCAP:
+	driver       : uvcvideo
+	card         : Lenovo EasyCamera
+	bus_info     : usb-0000:00:14.0-5
+	version      : 0x00040910
+	capabilities : 0x84200001
+		V4L2_CAP_VIDEO_CAPTURE
+		V4L2_CAP_EXT_PIX_FORMAT
+		V4L2_CAP_STREAMING
+		V4L2_CAP_DEVICE_CAPS
+	device_caps  : 0x04200001
+		V4L2_CAP_VIDEO_CAPTURE
+		V4L2_CAP_EXT_PIX_FORMAT
+		V4L2_CAP_STREAMING
+VIDIOC_ENUM_FMT:
+	index       : 1
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	flags       : 0x00000001
+	description : Motion-JPEG
+	pixelformat : 'MJPG'
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 1
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 1280, height: 720
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 2
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 800, height: 600
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 3
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 640, height: 480
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 4
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 320, height: 240
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 5
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 160, height: 120
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 6
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 640, height: 360
+VIDIOC_ENUM_FMT:
+	index       : 2
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	flags       : 0x00000000
+	description : YUYV 4:2:2
+	pixelformat : 'YUYV'
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 1
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 1280, height: 720
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 2
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 800, height: 600
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 3
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 640, height: 480
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 4
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 320, height: 240
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 5
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 160, height: 120
+	VIDIOC_ENUM_FRAMESIZES:
+		index       : 6
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMIVAL_TYPE_DISCRETE
+		discrete    : width: 640, height: 360
+VIDIOC_CROPCAP:
+	bounds      : left: 0, top: 0, width: 1280, height: 720
+	defrect     : left: 0, top: 0, width: 1280, height: 720
+	pixelaspect : numerator: 1, denominator: 1
+VIDIOC_REQBUFS:
+	count: 1
+VIDIOC_QUERYBUF:
+	length: 1843200
+	offset: 0
+'image0001.jpg', size: 128008
+'image0002.jpg', size: 126924
+'image0003.jpg', size: 126350
