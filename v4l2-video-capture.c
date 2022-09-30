@@ -62,6 +62,12 @@ struct v4l2_iovec {
     size_t iov_len;
 };
 
+struct v4l2_selected_format {
+    uint32_t pixelformat;
+    uint32_t width;
+    uint32_t height;
+};
+
 /*===========================================================================*\
  * global object definitions
 \*===========================================================================*/
@@ -85,18 +91,20 @@ static void v4l2_print_control(int fd, const struct v4l2_query_ext_ctrl* qextctr
 
 static uint32_t v4l2_query_capabilities(int fd, uint32_t flags);
 static void v4l2_query_controls(int fd);
-static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
-static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type);
-static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
-static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enum v4l2_buf_type buf_type);
+static int v4l2_query_mmap_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
+static int v4l2_query_userptr_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
+static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
+static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
+static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
+static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
 static void v4l2_store_frame(uint32_t fourcc, const struct v4l2_iovec *iov, size_t iovcnt, int counter);
-static int v4l2_video_capture(int fd, int number_of_frames, enum v4l2_buf_type buf_type);
+static int v4l2_video_capture(int fd, int number_of_frames, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
 
 /*===========================================================================*\
  * local object definitions
 \*===========================================================================*/
 static const char* output_directory;
-static struct v4l2_format selected_format;
+static struct v4l2_selected_format selected_format;
 static struct v4l2_buffer_descriptor* buffer_descriptors;
 static enum v4l2_buffer_sharing_mode buffer_sharing_mode = V4L2_BUFFER_SHARING_MODE_DMA;
 
@@ -113,18 +121,22 @@ int main(int argc, char *argv[])
     uint32_t capabilities;
     int number_of_frames = 1;
     int number_of_buffers = 1;
+    enum v4l2_memory memory = V4L2_MEMORY_MMAP;
     bool use_compressed_formats = false;
+    enum v4l2_buf_type buf_type;
+    struct v4l2_format format;
 
     static struct option long_options[] = {
         {"number-of-frames",       required_argument, 0, 'n'},
         {"number-of-buffers",      required_argument, 0, 'b'},
+        {"memory",                 required_argument, 0, 'm'},
         {"use-compressed-formats", no_argument,       0, 'c'},
-        {"output-directory",       no_argument,       0, 'o'},
+        {"output-directory",       required_argument, 0, 'o'},
         {0, 0, 0, 0}
     };
 
     for (;;) {
-        int c = getopt_long(argc, argv, "n:b:co:", long_options, 0);
+        int c = getopt_long(argc, argv, "n:b:m:co:", long_options, 0);
         if (-1 == c)
             break;
 
@@ -135,6 +147,21 @@ int main(int argc, char *argv[])
 
             case 'b':
                 number_of_buffers = atoi(optarg);
+                break;
+
+            case 'm':
+                if (strcmp(optarg, "mmap") == 0) {
+                    memory = V4L2_MEMORY_MMAP;
+                } else
+                if (strcmp(optarg, "userptr") == 0) {
+                    memory = V4L2_MEMORY_USERPTR;
+                } else
+                if (strcmp(optarg, "dmabuf") == 0) {
+                    memory = V4L2_MEMORY_DMABUF;
+                } else {
+                    /* use default value */
+                    memory = V4L2_MEMORY_MMAP;
+                }
                 break;
 
             case 'c':
@@ -183,32 +210,57 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    /*
+     * If driver supports multiplanar format (V4L2_CAP_VIDEO_CAPTURE_MPLANE),
+     * then prefer this one instead of single planar one (V4L2_CAP_VIDEO_CAPTURE)
+     */
+    buf_type =
+        capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE ?
+        V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
     v4l2_query_controls(fd);
 
-    if (selected_format.type == 0) {
+    if (selected_format.pixelformat == 0) {
         fprintf(stderr, "No frame format is selected for capturing\n");
         exit(EXIT_FAILURE);
     }
 
-    v4l2_print_format(&selected_format);
+    memset(&format, 0, sizeof(format));
+    format.type = buf_type;
+    if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
+        format.fmt.pix.pixelformat = selected_format.pixelformat;
+        format.fmt.pix.width = selected_format.width;
+        format.fmt.pix.height = selected_format.height;
+    } else {
+        format.fmt.pix_mp.pixelformat = selected_format.pixelformat;
+        format.fmt.pix_mp.width = selected_format.width;
+        format.fmt.pix_mp.height = selected_format.height;
+    }
 
-    if (-1 == ioctl(fd, VIDIOC_S_FMT, &selected_format)) {
+    if (-1 == ioctl(fd, VIDIOC_TRY_FMT, &format)) {
+        fprintf(stderr, "VIDIOC_TRY_FMT failed: %s\n", strerror(errno));
+    }
+
+    fprintf(stdout, "Using following format:\n");
+    v4l2_print_format(&format);
+
+    if (-1 == ioctl(fd, VIDIOC_S_FMT, &format)) {
         fprintf(stderr, "VIDIOC_S_FMT failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
-    number_of_buffers = v4l2_query_buffers(fd, number_of_buffers, selected_format.type);
+    number_of_buffers = v4l2_query_buffers(fd, number_of_buffers, buf_type, memory);
     if (number_of_buffers < 0) {
         fprintf(stderr, "v4l2_query_buffers() failed\n");
         exit(EXIT_FAILURE);
     }
 
-    if (v4l2_queue_buffers(fd, number_of_buffers, selected_format.type)) {
+    if (v4l2_queue_buffers(fd, number_of_buffers, buf_type, memory)) {
         fprintf(stderr, "v4l2_queue_buffers() failed\n");
         exit(EXIT_FAILURE);
     }
 
-    if (v4l2_video_capture(fd, number_of_frames, selected_format.type)) {
+    if (v4l2_video_capture(fd, number_of_frames, buf_type, memory)) {
         fprintf(stderr, "v4l2_capture_image() failed\n");
         exit(EXIT_FAILURE);
     }
@@ -222,12 +274,13 @@ int main(int argc, char *argv[])
 \*===========================================================================*/
 static void v4l2_print_usage(const char* progname)
 {
-    fprintf(stdout, "usage: %s [-n <frames>] [-b <buffers>] [-c] [-o <output-directory>] <filename>\n", progname);
+    fprintf(stdout, "usage: %s [-n <frames>] [-b <buffers>] [-m <memory>] [-c] [-o <output-directory>] <filename>\n", progname);
     fprintf(stdout, " options:\n");
     fprintf(stdout, "  -n <frames>  --number-of-frames=<frames>   : number of frames to be captured (default: 1)\n");
     fprintf(stdout, "  -b <buffers> --number-of-buffers=<buffers> : number of buffers to be allocated for capturing (default: 1)\n");
+    fprintf(stdout, "  -m <memory>  --memory=<memory>             : memory allocation type {mmap, userptr, dmabuf} (default: mmap)\n");
     fprintf(stdout, "  -c --use-compressed-formats                : if set, capturing will search for compressed formats\n");
-    fprintf(stdout, "  -o --output-directory                      : if set, specifies directory for captured frames\n");
+    fprintf(stdout, "  -o <dir> --output-directory=<dir>          : if set, specifies directory for captured frames\n");
     fprintf(stdout, "  <filename>                                 : capturing device (e.g. /dev/video0)\n");
 }
 
@@ -314,18 +367,18 @@ static const char* v4l2_buf_type_to_string(enum v4l2_buf_type buf_type)
 
 static const char* v4l2_memory_to_string(enum v4l2_memory memory)
 {
-	static const char* memories[] = {
-		[0]                    = "0",
-		[V4L2_MEMORY_MMAP]     = "V4L2_MEMORY_MMAP",
-		[V4L2_MEMORY_USERPTR]  = "V4L2_MEMORY_USERPTR",
-		[V4L2_MEMORY_OVERLAY]  = "V4L2_MEMORY_OVERLAY",
-		[V4L2_MEMORY_DMABUF]   = "V4L2_MEMORY_DMABUF",
-	};
+    static const char* memories[] = {
+        [0]                    = "0",
+        [V4L2_MEMORY_MMAP]     = "V4L2_MEMORY_MMAP",
+        [V4L2_MEMORY_USERPTR]  = "V4L2_MEMORY_USERPTR",
+        [V4L2_MEMORY_OVERLAY]  = "V4L2_MEMORY_OVERLAY",
+        [V4L2_MEMORY_DMABUF]   = "V4L2_MEMORY_DMABUF",
+    };
 
-	if (memory >= ARRAY_SIZE(memories))
-		memory = 0;
+    if (memory >= ARRAY_SIZE(memories))
+        memory = 0;
 
-	return memories[memory];
+    return memories[memory];
 }
 
 static const char* v4l2_frmsizetype_to_string(enum v4l2_frmsizetypes type)
@@ -792,23 +845,22 @@ static uint32_t v4l2_query_capabilities(int fd, uint32_t flags)
                 else
                     continue;
 
-                if (selected_format.type == 0) {
+                if (selected_format.pixelformat == 0) {
                     if ((flags ^ fmtdesc.flags) == 0) {
-                        selected_format.type = buf_type;
-                        selected_format.fmt.pix.pixelformat = frmsizeenum.pixel_format;
+                        selected_format.pixelformat = frmsizeenum.pixel_format;
 
                         if (V4L2_FRMSIZE_TYPE_DISCRETE == frmsizeenum.type) {
-                            selected_format.fmt.pix.width = frmsizeenum.discrete.width;
-                            selected_format.fmt.pix.height = frmsizeenum.discrete.height;
+                            selected_format.width = frmsizeenum.discrete.width;
+                            selected_format.height = frmsizeenum.discrete.height;
                         }
                         else
                         if (V4L2_FRMSIZE_TYPE_STEPWISE == frmsizeenum.type) {
-                            selected_format.fmt.pix.width = frmsizeenum.stepwise.min_width;
-                            selected_format.fmt.pix.height = frmsizeenum.stepwise.min_height;
+                            selected_format.width = frmsizeenum.stepwise.min_width;
+                            selected_format.height = frmsizeenum.stepwise.min_height;
                         }
                         else {
-                            selected_format.fmt.pix.width = 0;
-                            selected_format.fmt.pix.height = 0;
+                            selected_format.width = 0;
+                            selected_format.height = 0;
                         }
                     }
                 }
@@ -896,18 +948,159 @@ static void v4l2_query_controls(int fd)
     } while (qextctrl.id < V4L2_CID_LASTP1);
 }
 
-static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type)
+static int v4l2_query_mmap_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type)
+{
+    int i;
+
+    for (i = 0; i < number_of_buffers; ++i) {
+        struct v4l2_buffer_descriptor* bd = buffer_descriptors + i;
+        struct v4l2_buffer buffer;
+        struct v4l2_plane planes[VIDEO_MAX_PLANES];
+        void* addr;
+
+        memset(&buffer, 0, sizeof(buffer));
+        buffer.index = i;
+        buffer.type = buf_type;
+        buffer.memory = V4L2_MEMORY_MMAP;
+        if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
+            memset(&planes, 0, sizeof(planes));
+            buffer.length = ARRAY_SIZE(planes);
+            buffer.m.planes = planes;
+        }
+
+        if(-1 == ioctl(fd, VIDIOC_QUERYBUF, &buffer)) {
+            fprintf(stderr, "VIDIOC_QUERYBUF[%d] failed: %s\n", i, strerror(errno));
+            break;
+        }
+
+        fprintf(stdout, "VIDIOC_QUERYBUF[%u]:\n", i);
+        v4l2_print_buffer(&buffer);
+
+        if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
+            unsigned plane;
+
+            bd->index = i;
+            bd->nplanes = buffer.length;
+
+            for (plane = 0; plane < buffer.length; ++plane) {
+                if (buffer.m.planes[plane].length > 0) {
+                    addr = mmap(NULL, buffer.m.planes[plane].length,
+                        PROT_READ | PROT_WRITE, MAP_SHARED,
+                        fd, buffer.m.planes[plane].m.mem_offset);
+                    if (MAP_FAILED == addr) {
+                        fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+                        break;
+                    }
+                }
+
+                bd->planes[plane].addr = addr;
+                bd->planes[plane].size = buffer.m.planes[plane].length;
+                bd->planes[plane].fd = -1;
+            }
+            if (plane < buffer.length)
+                break;
+        } else {
+            addr = mmap(NULL, buffer.length,
+                PROT_READ | PROT_WRITE, MAP_SHARED, fd, buffer.m.offset);
+            if (MAP_FAILED == addr) {
+                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+                break;
+            }
+
+            bd->index = i;
+            bd->nplanes = 1;
+            bd->planes[0].addr = addr;
+            bd->planes[0].size = buffer.length;
+            bd->planes[0].fd = -1;
+        }
+    }
+
+    return i == number_of_buffers ? 0 /*success*/ : -1 /*failture*/;
+}
+
+static int v4l2_query_userptr_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type)
+{
+    int i;
+    struct v4l2_format format;
+
+    memset(&format, 0, sizeof(format));
+    format.type = buf_type;
+    if (-1 == ioctl(fd, VIDIOC_G_FMT, &format)) {
+        fprintf(stderr, "VIDIOC_G_FMT failed: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if (format.type != buf_type) {
+        fprintf(stderr, "Incompatible buffer types detected\n");
+        return -1;
+    }
+
+    for (i = 0; i < number_of_buffers; ++i) {
+        struct v4l2_buffer_descriptor* bd = buffer_descriptors + i;
+        size_t size;
+        void* addr;
+
+        if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
+            unsigned plane;
+
+            bd->index = i;
+            bd->nplanes = format.fmt.pix_mp.num_planes;
+
+            for (plane = 0; plane < bd->nplanes; ++plane) {
+                if (format.fmt.pix_mp.plane_fmt[plane].sizeimage)
+                    size = format.fmt.pix_mp.plane_fmt[plane].sizeimage;
+                else
+                if (format.fmt.pix_mp.plane_fmt[plane].bytesperline)
+                    size = format.fmt.pix_mp.plane_fmt[plane].bytesperline * format.fmt.pix_mp.height;
+                else
+                    break;
+
+                addr = malloc(size);
+                if (addr == NULL)
+                    break;
+
+                bd->planes[plane].addr = addr;
+                bd->planes[plane].size = size;
+                bd->planes[plane].fd = -1;
+            }
+            if (plane < bd->nplanes)
+                break;
+        } else {
+            if (format.fmt.pix.sizeimage)
+                size = format.fmt.pix.sizeimage;
+            else
+            if (format.fmt.pix.bytesperline)
+                size = format.fmt.pix.bytesperline * format.fmt.pix.height;
+            else
+                break;
+
+            addr = malloc(size);
+            if (addr == NULL)
+                break;
+
+            bd->index = i;
+            bd->nplanes = 1;
+            bd->planes[0].addr = addr;
+            bd->planes[0].size = size;
+            bd->planes[0].fd = -1;
+        }
+    }
+
+    return i == number_of_buffers ? 0 /*success*/ : -1 /*failture*/;
+}
+
+static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
     int retval = -1;
 
     do {
+        int status;
         struct v4l2_requestbuffers requestbuffers;
-        uint32_t i;
 
         memset(&requestbuffers, 0, sizeof(requestbuffers));
         requestbuffers.count = number_of_buffers;
         requestbuffers.type = buf_type;
-        requestbuffers.memory = V4L2_MEMORY_MMAP;
+        requestbuffers.memory = memory;
 
         if (-1 == ioctl(fd, VIDIOC_REQBUFS, &requestbuffers)) {
             fprintf(stderr, "VIDIOC_REQBUFS failed: %s\n", strerror(errno));
@@ -927,72 +1120,25 @@ static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
             break;
         }
 
-        for (i = 0; i < requestbuffers.count; ++i) {
-            struct v4l2_buffer buffer;
-            struct v4l2_plane planes[VIDEO_MAX_PLANES];
-            struct v4l2_buffer_descriptor* bd;
-            void* addr;
-
-            memset(&buffer, 0, sizeof(buffer));
-            buffer.index = i;
-            buffer.type = buf_type;
-            buffer.memory = V4L2_MEMORY_MMAP;
-            if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
-                memset(&planes, 0, sizeof(planes));
-                buffer.length = ARRAY_SIZE(planes);
-                buffer.m.planes = planes;
-            }
-
-            if(-1 == ioctl(fd, VIDIOC_QUERYBUF, &buffer)) {
-                fprintf(stderr, "VIDIOC_QUERYBUF[%d] failed: %s\n", i, strerror(errno));
+        switch (memory) {
+            case V4L2_MEMORY_MMAP:
+                status = v4l2_query_mmap_buffers(fd, requestbuffers.count, buf_type);
                 break;
-            }
 
-            fprintf(stdout, "VIDIOC_QUERYBUF[%u]:\n", i);
-            v4l2_print_buffer(&buffer);
+            case V4L2_MEMORY_USERPTR:
+                status = v4l2_query_userptr_buffers(fd, requestbuffers.count, buf_type);
+                break;
 
-            if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
-                unsigned plane;
+            case V4L2_MEMORY_DMABUF:
+                status = -1; // Not implemented yet
+                break;
 
-                bd = buffer_descriptors + i;
-                bd->index = i;
-                bd->nplanes = buffer.length;
+            default:
+                status = -1;
+                break;
+        };
 
-                for (plane = 0; plane < buffer.length; ++plane) {
-                    if (buffer.m.planes[plane].length > 0) {
-                        addr = mmap(NULL, buffer.m.planes[plane].length,
-                            PROT_READ | PROT_WRITE, MAP_SHARED,
-                            fd, buffer.m.planes[plane].m.mem_offset);
-                        if (MAP_FAILED == addr) {
-                            fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
-                            break;
-                        }
-                    }
-
-                    bd->planes[plane].addr = addr;
-                    bd->planes[plane].size = buffer.m.planes[plane].length;
-                    bd->planes[plane].fd = buffer.m.planes[plane].m.fd;
-                }
-                if (plane < buffer.length)
-                    break;
-            } else {
-                addr = mmap(NULL, buffer.length,
-                    PROT_READ | PROT_WRITE, MAP_SHARED, fd, buffer.m.offset);
-                if (MAP_FAILED == addr) {
-                    fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
-                    break;
-                }
-
-                bd = buffer_descriptors + i;
-                bd->index = i;
-                bd->nplanes = 1;
-                bd->planes[0].addr = addr;
-                bd->planes[0].size = buffer.length;
-                bd->planes[0].fd = buffer.m.fd;
-            }
-        }
-
-        if (i < requestbuffers.count)
+        if (status)
             break;
 
         retval = requestbuffers.count;
@@ -1001,22 +1147,35 @@ static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
     return retval;
 }
 
-static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type)
+static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
     int retval = -1;
 
     do {
         struct v4l2_buffer buffer;
-        struct v4l2_plane planes[VIDEO_MAX_PLANES];
+        struct v4l2_buffer_descriptor* bd = buffer_descriptors + index;
+        struct v4l2_plane planes[bd->nplanes];
 
         memset(&buffer, 0, sizeof(buffer));
         buffer.index = index;
         buffer.type = buf_type;
-        buffer.memory = V4L2_MEMORY_MMAP;
+        buffer.memory = memory;
         if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
             memset(&planes, 0, sizeof(planes));
-            buffer.length = ARRAY_SIZE(planes);
+            if (memory == V4L2_MEMORY_USERPTR) {
+                unsigned plane;
+                for (plane = 0; plane < bd->nplanes; ++plane) {
+                    planes[plane].m.userptr = (unsigned long)bd->planes[plane].addr;
+                    planes[plane].length = bd->planes[plane].size;
+                }
+            }
+            buffer.length = bd->nplanes;
             buffer.m.planes = planes;
+        } else {
+            if (memory == V4L2_MEMORY_USERPTR) {
+                buffer.m.userptr = (unsigned long)bd->planes[0].addr;
+                buffer.length = bd->planes[0].size;
+            }
         }
 
         if(-1 == ioctl(fd, VIDIOC_QBUF, &buffer)) {
@@ -1030,7 +1189,7 @@ static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type)
     return retval;
 }
 
-static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type)
+static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
     int retval = -1;
 
@@ -1039,7 +1198,7 @@ static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
         int status;
 
         for (i = 0; i < number_of_buffers; ++i) {
-            status = v4l2_queue_buffer(fd, i, buf_type);
+            status = v4l2_queue_buffer(fd, i, buf_type, memory);
             if (status)
                 break;
         }
@@ -1053,7 +1212,7 @@ static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
     return retval;
 }
 
-static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enum v4l2_buf_type buf_type)
+static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
     int retval = -1;
 
@@ -1083,7 +1242,7 @@ static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enu
 
         memset(&buffer, 0, sizeof(buffer));
         buffer.type = buf_type;
-        buffer.memory = V4L2_MEMORY_MMAP;
+        buffer.memory = memory;
         if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
             memset(&planes, 0, sizeof(planes));
             buffer.length = ARRAY_SIZE(planes);
@@ -1119,7 +1278,7 @@ static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enu
             }
         }
 
-        status = v4l2_queue_buffer(fd, index, buf_type);
+        status = v4l2_queue_buffer(fd, index, buf_type, memory);
         if (status) {
             fprintf(stderr, "v4l2_queue_buffer() failed\n");
             break;
@@ -1177,29 +1336,28 @@ static void v4l2_store_frame(uint32_t fourcc, const struct v4l2_iovec *iov, size
         close(fd);
 }
 
-static int v4l2_video_capture(int fd, int number_of_frames, enum v4l2_buf_type buf_type)
+static int v4l2_video_capture(int fd, int number_of_frames, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
     struct v4l2_iovec iov[VIDEO_MAX_PLANES];
     int i;
 
-    if(-1 == ioctl(fd, VIDIOC_STREAMON, &buf_type)) {
+    if (-1 == ioctl(fd, VIDIOC_STREAMON, &buf_type)) {
         fprintf(stderr, "VIDIOC_STREAMON failed: %s\n", strerror(errno));
         return -1;
     }
 
     i = 0;
     while (i < number_of_frames) {
-        if (0 == v4l2_capture_frame(fd, iov, ARRAY_SIZE(iov), buf_type)) {
-            v4l2_store_frame(selected_format.fmt.pix.pixelformat, iov, ARRAY_SIZE(iov), i + 1);
+        if (0 == v4l2_capture_frame(fd, iov, ARRAY_SIZE(iov), buf_type, memory)) {
+            v4l2_store_frame(selected_format.pixelformat, iov, ARRAY_SIZE(iov), i + 1);
             i++;
         }
     }
 
-    if(-1 == ioctl(fd, VIDIOC_STREAMOFF, &buf_type)) {
+    if (-1 == ioctl(fd, VIDIOC_STREAMOFF, &buf_type)) {
         fprintf(stderr, "VIDIOC_STREAMOFF failed: %s\n", strerror(errno));
         return -1;
     }
 
     return 0;
 }
-
