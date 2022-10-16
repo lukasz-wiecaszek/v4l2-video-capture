@@ -637,7 +637,7 @@ static void v4l2_print_buffer(const struct v4l2_buffer* buffer)
             } else
             if (buffer->memory == V4L2_MEMORY_USERPTR) {
                 fprintf(stdout,
-                    "\t\tuserptr     : %lu\n",
+                    "\t\tuserptr     : 0x%lx\n",
                     buffer->m.planes[i].m.userptr
                 );
             } else
@@ -660,7 +660,7 @@ static void v4l2_print_buffer(const struct v4l2_buffer* buffer)
         } else
         if (buffer->memory == V4L2_MEMORY_USERPTR) {
             fprintf(stdout,
-                "\tuserptr     : %lu\n",
+                "\tuserptr     : 0x%lx\n",
                 buffer->m.userptr
             );
         } else
