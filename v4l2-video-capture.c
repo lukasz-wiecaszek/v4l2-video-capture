@@ -12,6 +12,8 @@
 /*===========================================================================*\
  * system header files
 \*===========================================================================*/
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -26,6 +28,7 @@
 #include <sys/mman.h>
 
 #include <linux/videodev2.h>
+#include <linux/udmabuf.h>
 
 /*===========================================================================*\
  * project header files
@@ -34,8 +37,13 @@
 /*===========================================================================*\
  * preprocessor #define constants and macros
 \*===========================================================================*/
-#define V4L2_SELECT_TIMEOUT_SEC 10
+#define SELECT_TIMEOUT_SEC 10
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#define MEMFD_FILE_NAME "dmabuf"
+#define UDMABUF_DEVICE_NAME "/dev/udmabufx"
+#define IS_POWER_OF_TWO(x) (((x) & ((x) - 1)) == 0)
+#define ALIGN(x, a) __ALIGN(x, (a) - 1)
+#define __ALIGN(x, mask) (((x) + (mask)) & ~(mask))
 
 /*===========================================================================*\
  * local type definitions
@@ -89,10 +97,15 @@ static void v4l2_print_format(const struct v4l2_format* format);
 static void v4l2_print_buffer(const struct v4l2_buffer* buffer);
 static void v4l2_print_control(int fd, const struct v4l2_query_ext_ctrl* qextctrl);
 
+static int v4l2_create_memory_fd(size_t size);
+static int v4l2_create_dmabuf_fd(int memfd, size_t size);
+static int v4l2_dma_alloc(size_t size, void **addr);
+
 static uint32_t v4l2_query_capabilities(int fd, uint32_t flags);
 static void v4l2_query_controls(int fd);
 static int v4l2_query_mmap_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
 static int v4l2_query_userptr_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
+static int v4l2_query_dma_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
 static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
 static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
 static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
@@ -777,6 +790,119 @@ static void v4l2_print_control(int fd, const struct v4l2_query_ext_ctrl* qextctr
     } while (0);
 }
 
+static int v4l2_create_memory_fd(size_t size)
+{
+    int retval = -1;
+
+    do {
+        int memfd;
+        int status;
+
+        /*
+         * Set the close-on-exec (FD_CLOEXEC) flag on the new file descriptor.
+         * Allow sealing operations on this file. See the discussion
+         * of the F_ADD_SEALS and F_GET_SEALS operations in fcntl(2).
+         * The initial set of seals is empty.
+         * If this flag is not set, the initial set of seals will be
+         * F_SEAL_SEAL, meaning that no other seals can be set on the file.
+         */
+        memfd = memfd_create(MEMFD_FILE_NAME, MFD_CLOEXEC | MFD_ALLOW_SEALING);
+        if (memfd == -1) {
+            fprintf(stderr, "memfd_create(%s) failed: %s\n", MEMFD_FILE_NAME, strerror(errno));
+            break;
+        }
+
+        status = ftruncate(memfd, size);
+        if (status == -1) {
+            fprintf(stderr, "ftruncate(%zu) failed: %s\n", size, strerror(errno));
+            break;
+        }
+
+        /* udmabuf_create requires that file descriptors be sealed with F_SEAL_SHRINK */
+        status = fcntl(memfd, F_ADD_SEALS, F_SEAL_SHRINK);
+        if (status == -1) {
+            fprintf(stderr, "fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK) failed: %s\n", strerror(errno));
+            break;
+        }
+
+        retval = memfd;
+    } while (0);
+
+    return retval;
+}
+
+static int v4l2_create_dmabuf_fd(int memfd, size_t size)
+{
+    int retval = -1;
+
+    do {
+        int fd;
+        int dmabuffd;
+        int status;
+        struct udmabuf_create udmabuf_create;
+
+        if (memfd == -1)
+            break;
+
+        fd = open(UDMABUF_DEVICE_NAME, O_RDWR);
+        if (fd == -1) {
+            fprintf(stderr, "cannot open '%s': %s\n", UDMABUF_DEVICE_NAME, strerror(errno));
+            break;
+        }
+
+        memset(&udmabuf_create, 0, sizeof(udmabuf_create));
+        udmabuf_create.memfd = memfd;
+        udmabuf_create.flags = UDMABUF_FLAGS_CLOEXEC;
+        udmabuf_create.offset = 0;
+        udmabuf_create.size = size;
+
+        dmabuffd = ioctl(fd, UDMABUF_CREATE, &udmabuf_create);
+        if (dmabuffd == -1) {
+            fprintf(stderr, "ioctl(UDMABUF_CREATE) failed: %s\n", strerror(errno));
+        }
+
+        close(fd);
+
+        retval = dmabuffd;
+    } while (0);
+
+    return retval;
+}
+
+static int v4l2_dma_alloc(size_t size, void **addr)
+{
+    int memfd;
+    int dmabuffd;
+    void *p;
+    long pagesize = sysconf(_SC_PAGESIZE);
+
+    if (pagesize <= 0 || !IS_POWER_OF_TWO(pagesize))
+        pagesize = 0x1000; // set default value to 4KiB
+
+    size = ALIGN(size, pagesize);
+
+    memfd = v4l2_create_memory_fd(size);
+
+    p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, 0);
+    if (p == MAP_FAILED) {
+        fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+        close(memfd);
+        return -1;
+    }
+
+    if (addr)
+        *addr = p;
+
+    dmabuffd = v4l2_create_dmabuf_fd(memfd, size);
+
+    /* memfd can be closed here.
+    Only when all references to the memfd are dropped,
+    it will be automatically released. */
+    close(memfd);
+
+    return dmabuffd;
+}
+
 static uint32_t v4l2_query_capabilities(int fd, uint32_t flags)
 {
     uint32_t capabilities = 0;
@@ -1089,6 +1215,74 @@ static int v4l2_query_userptr_buffers(int fd, int number_of_buffers, enum v4l2_b
     return i == number_of_buffers ? 0 /*success*/ : -1 /*failture*/;
 }
 
+static int v4l2_query_dma_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type)
+{
+    int i;
+    struct v4l2_format format;
+
+    memset(&format, 0, sizeof(format));
+    format.type = buf_type;
+    if (-1 == ioctl(fd, VIDIOC_G_FMT, &format)) {
+        fprintf(stderr, "VIDIOC_G_FMT failed: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if (format.type != buf_type) {
+        fprintf(stderr, "Incompatible buffer types detected\n");
+        return -1;
+    }
+
+    for (i = 0; i < number_of_buffers; ++i) {
+        struct v4l2_buffer_descriptor* bd = buffer_descriptors + i;
+        size_t size;
+        void* addr;
+        int dmabuffd;
+
+        if (V4L2_TYPE_IS_MULTIPLANAR(buf_type)) {
+            unsigned plane;
+
+            bd->index = i;
+            bd->nplanes = format.fmt.pix_mp.num_planes;
+
+            for (plane = 0; plane < bd->nplanes; ++plane) {
+                if (format.fmt.pix_mp.plane_fmt[plane].sizeimage)
+                    size = format.fmt.pix_mp.plane_fmt[plane].sizeimage;
+                else
+                if (format.fmt.pix_mp.plane_fmt[plane].bytesperline)
+                    size = format.fmt.pix_mp.plane_fmt[plane].bytesperline * format.fmt.pix_mp.height;
+                else
+                    break;
+
+                dmabuffd = v4l2_dma_alloc(size, &addr);
+
+                bd->planes[plane].addr = addr;
+                bd->planes[plane].size = size;
+                bd->planes[plane].fd = dmabuffd;
+            }
+            if (plane < bd->nplanes)
+                break;
+        } else {
+            if (format.fmt.pix.sizeimage)
+                size = format.fmt.pix.sizeimage;
+            else
+            if (format.fmt.pix.bytesperline)
+                size = format.fmt.pix.bytesperline * format.fmt.pix.height;
+            else
+                break;
+
+            dmabuffd = v4l2_dma_alloc(size, &addr);
+
+            bd->index = i;
+            bd->nplanes = 1;
+            bd->planes[0].addr = addr;
+            bd->planes[0].size = size;
+            bd->planes[0].fd = dmabuffd;
+        }
+    }
+
+    return i == number_of_buffers ? 0 /*success*/ : -1 /*failture*/;
+};
+
 static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
     int retval = -1;
@@ -1130,7 +1324,7 @@ static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
                 break;
 
             case V4L2_MEMORY_DMABUF:
-                status = -1; // Not implemented yet
+                status = v4l2_query_dma_buffers(fd, requestbuffers.count, buf_type);
                 break;
 
             default:
@@ -1169,6 +1363,16 @@ static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enu
                     planes[plane].length = bd->planes[plane].size;
                 }
             }
+            else
+            if (memory == V4L2_MEMORY_DMABUF) {
+                unsigned plane;
+                for (plane = 0; plane < bd->nplanes; ++plane)
+                    planes[plane].m.fd = bd->planes[plane].fd;
+              }
+            else {
+                /* do nothing */
+            }
+
             buffer.length = bd->nplanes;
             buffer.m.planes = planes;
         } else {
@@ -1176,9 +1380,16 @@ static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enu
                 buffer.m.userptr = (unsigned long)bd->planes[0].addr;
                 buffer.length = bd->planes[0].size;
             }
+            else
+            if (memory == V4L2_MEMORY_DMABUF) {
+                buffer.m.fd = bd->planes[0].fd;
+            }
+            else {
+                /* do nothing */
+            }
         }
 
-        if(-1 == ioctl(fd, VIDIOC_QBUF, &buffer)) {
+        if (-1 == ioctl(fd, VIDIOC_QBUF, &buffer)) {
             fprintf(stderr, "VIDIOC_QBUF[%d] failed: %s\n", index, strerror(errno));
             break;
         }
@@ -1228,7 +1439,7 @@ static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enu
         FD_ZERO(&fds);
         FD_SET(fd, &fds);
 
-        ts.tv_sec = V4L2_SELECT_TIMEOUT_SEC;
+        ts.tv_sec = SELECT_TIMEOUT_SEC;
         ts.tv_nsec = 0;
         status = pselect(fd+1, &fds, NULL, NULL, &ts, NULL);
         if (-1 == status) {
@@ -1236,7 +1447,7 @@ static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enu
             break;
         } else
         if (0 == status) {
-            fprintf(stderr, "no data within %d seconds, timeout expired\n", V4L2_SELECT_TIMEOUT_SEC);
+            fprintf(stderr, "no data within %d seconds, timeout expired\n", SELECT_TIMEOUT_SEC);
             break;
         }
 
@@ -1319,7 +1530,7 @@ static void v4l2_store_frame(uint32_t fourcc, const struct v4l2_iovec *iov, size
             break;
 
         fd = open(image_filename, O_WRONLY | O_CREAT | O_TRUNC, 0664);
-        if (-1 == fd){
+        if (-1 == fd) {
             fprintf(stderr, "cannot open '%s': %s\n", image_filename, strerror(errno));
             break;
         }
