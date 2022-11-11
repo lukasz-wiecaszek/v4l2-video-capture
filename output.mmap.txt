@@ -1,0 +1,433 @@
+v4l2_capability:
+	driver       : uvcvideo
+	card         : Integrated Camera: Integrated C
+	bus_info     : usb-0000:00:14.0-8
+	version      : 0x00050f40
+	capabilities : 0x84a00001
+		V4L2_CAP_VIDEO_CAPTURE
+		V4L2_CAP_EXT_PIX_FORMAT
+		V4L2_CAP_META_CAPTURE
+		V4L2_CAP_STREAMING
+		V4L2_CAP_DEVICE_CAPS
+	device_caps  : 0x04200001
+		V4L2_CAP_VIDEO_CAPTURE
+		V4L2_CAP_EXT_PIX_FORMAT
+		V4L2_CAP_STREAMING
+v4l2_fmtdesc:
+	index       : 0
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	flags       : 0x00000001
+	description : Motion-JPEG
+	pixelformat : 'MJPG'
+	v4l2_frmsizeenum:
+		index       : 0
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 1280, height: 720
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 1280
+			height      : 720
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 1
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 320, height: 180
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 320
+			height      : 180
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 2
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 320, height: 240
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 320
+			height      : 240
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 3
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 352, height: 288
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 352
+			height      : 288
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 4
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 424, height: 240
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 424
+			height      : 240
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 5
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 640, height: 360
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 640
+			height      : 360
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 6
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 640, height: 480
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 640
+			height      : 480
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 7
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 848, height: 480
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 848
+			height      : 480
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 8
+		pixelformat : 'MJPG'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 960, height: 540
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'MJPG'
+			width       : 960
+			height      : 540
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+v4l2_fmtdesc:
+	index       : 1
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	flags       : 0x00000000
+	description : YUYV 4:2:2
+	pixelformat : 'YUYV'
+	v4l2_frmsizeenum:
+		index       : 0
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 1280, height: 720
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 1280
+			height      : 720
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/10
+	v4l2_frmsizeenum:
+		index       : 1
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 320, height: 180
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 320
+			height      : 180
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 2
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 320, height: 240
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 320
+			height      : 240
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 3
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 352, height: 288
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 352
+			height      : 288
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 4
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 424, height: 240
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 424
+			height      : 240
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 5
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 640, height: 360
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 640
+			height      : 360
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 6
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 640, height: 480
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 640
+			height      : 480
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/30
+	v4l2_frmsizeenum:
+		index       : 7
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 848, height: 480
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 848
+			height      : 480
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/20
+	v4l2_frmsizeenum:
+		index       : 8
+		pixelformat : 'YUYV'
+		type        : V4L2_FRMSIZE_TYPE_DISCRETE
+		discrete    : width: 960, height: 540
+		v4l2_frmivalenum:
+			index       : 0
+			pixelformat : 'YUYV'
+			width       : 960
+			height      : 540
+			type        : V4L2_FRMIVAL_TYPE_DISCRETE
+			discrete    : 1/15
+v4l2_cropcap:
+	bounds      : left: 0, top: 0, width: 1280, height: 720
+	defrect     : left: 0, top: 0, width: 1280, height: 720
+	pixelaspect : numerator: 1, denominator: 1
+VIDIOC_QUERY_EXT_CTRL:
+	id: 0x00980900, type: V4L2_CTRL_TYPE_INTEGER (1), name: Brightness
+		min/max/step : 0/255/1
+		default      : 128
+		flags        : 0x00000000
+		value        : 128
+	id: 0x00980901, type: V4L2_CTRL_TYPE_INTEGER (1), name: Contrast
+		min/max/step : 0/255/1
+		default      : 32
+		flags        : 0x00000000
+		value        : 32
+	id: 0x00980902, type: V4L2_CTRL_TYPE_INTEGER (1), name: Saturation
+		min/max/step : 0/100/1
+		default      : 64
+		flags        : 0x00000000
+		value        : 64
+	id: 0x00980903, type: V4L2_CTRL_TYPE_INTEGER (1), name: Hue
+		min/max/step : -180/180/1
+		default      : 0
+		flags        : 0x00000000
+		value        : 0
+	id: 0x0098090c, type: V4L2_CTRL_TYPE_BOOLEAN (2), name: White Balance Temperature, Auto
+		min/max/step : 0/1/1
+		default      : 1
+		flags        : 0x00000000
+		value        : 1
+	id: 0x00980910, type: V4L2_CTRL_TYPE_INTEGER (1), name: Gamma
+		min/max/step : 90/150/1
+		default      : 120
+		flags        : 0x00000000
+		value        : 120
+	id: 0x00980918, type: V4L2_CTRL_TYPE_MENU (3), name: Power Line Frequency
+		min/max/step : 0/2/1
+		default      : 1
+		flags        : 0x00000000
+		value        : 1
+	id: 0x0098091a, type: V4L2_CTRL_TYPE_INTEGER (1), name: White Balance Temperature
+		min/max/step : 2800/6500/1
+		default      : 4000
+		flags        : 0x00000010
+		value        : 4000
+	id: 0x0098091b, type: V4L2_CTRL_TYPE_INTEGER (1), name: Sharpness
+		min/max/step : 0/7/1
+		default      : 2
+		flags        : 0x00000000
+		value        : 2
+	id: 0x0098091c, type: V4L2_CTRL_TYPE_INTEGER (1), name: Backlight Compensation
+		min/max/step : 0/2/1
+		default      : 1
+		flags        : 0x00000000
+		value        : 1
+	id: 0x009a0901, type: V4L2_CTRL_TYPE_MENU (3), name: Exposure, Auto
+		min/max/step : 0/3/1
+		default      : 3
+		flags        : 0x00000000
+		value        : 3
+	id: 0x009a0902, type: V4L2_CTRL_TYPE_INTEGER (1), name: Exposure (Absolute)
+		min/max/step : 4/1250/1
+		default      : 156
+		flags        : 0x00000010
+		value        : 156
+	id: 0x009a0903, type: V4L2_CTRL_TYPE_BOOLEAN (2), name: Exposure, Auto Priority
+		min/max/step : 0/1/1
+		default      : 0
+		flags        : 0x00000000
+		value        : 1
+	id: 0x00980900, type: V4L2_CTRL_TYPE_INTEGER (1), name: Brightness
+		min/max/step : 0/255/1
+		default      : 128
+		flags        : 0x00000000
+		value        : 128
+	id: 0x00980901, type: V4L2_CTRL_TYPE_INTEGER (1), name: Contrast
+		min/max/step : 0/255/1
+		default      : 32
+		flags        : 0x00000000
+		value        : 32
+	id: 0x00980902, type: V4L2_CTRL_TYPE_INTEGER (1), name: Saturation
+		min/max/step : 0/100/1
+		default      : 64
+		flags        : 0x00000000
+		value        : 64
+	id: 0x00980903, type: V4L2_CTRL_TYPE_INTEGER (1), name: Hue
+		min/max/step : -180/180/1
+		default      : 0
+		flags        : 0x00000000
+		value        : 0
+Using following format:
+v4l2_format:
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	width       : 1280
+	height      : 720
+	pixelformat : 'MJPG'
+	field       : 1
+	bytesperline: 0
+	sizeimage   : 1843200
+	colorspace  : 8
+VIDIOC_REQBUFS:
+	requested count: 3, commited count: 3, caps: 0x00000017
+VIDIOC_QUERYBUF[0]:
+v4l2_buffer:
+	index       : 0
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 0
+	flags       : 0x00012000
+	field       : 0
+	sequence    : 0
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 0
+VIDIOC_QUERYBUF[1]:
+v4l2_buffer:
+	index       : 1
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 0
+	flags       : 0x00012000
+	field       : 0
+	sequence    : 0
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 1843200
+VIDIOC_QUERYBUF[2]:
+v4l2_buffer:
+	index       : 2
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 0
+	flags       : 0x00012000
+	field       : 0
+	sequence    : 0
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 3686400
+VIDIOC_DQBUF:
+v4l2_buffer:
+	index       : 1
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 106272
+	flags       : 0x00012001
+	field       : 1
+	sequence    : 1
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 1843200
+VIDIOC_DQBUF:
+v4l2_buffer:
+	index       : 0
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 106145
+	flags       : 0x00012001
+	field       : 1
+	sequence    : 3
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 0
+VIDIOC_DQBUF:
+v4l2_buffer:
+	index       : 2
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 109761
+	flags       : 0x00012001
+	field       : 1
+	sequence    : 5
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 3686400
+VIDIOC_DQBUF:
+v4l2_buffer:
+	index       : 0
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 109526
+	flags       : 0x00012001
+	field       : 1
+	sequence    : 6
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 0
+VIDIOC_DQBUF:
+v4l2_buffer:
+	index       : 1
+	type        : V4L2_BUF_TYPE_VIDEO_CAPTURE
+	byteused    : 112157
+	flags       : 0x00012001
+	field       : 1
+	sequence    : 7
+	memory      : V4L2_MEMORY_MMAP
+	length      : 1843200
+	offset      : 1843200

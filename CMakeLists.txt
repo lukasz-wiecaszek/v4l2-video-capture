@@ -30,7 +30,7 @@ message(STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE})
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 if ("${CMAKE_BUILD_TYPE_LOWER}" STREQUAL "debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ggdb3")
 endif()
 
 add_executable(${PROJECT_NAME}

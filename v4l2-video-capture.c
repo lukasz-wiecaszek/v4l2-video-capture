@@ -40,7 +40,7 @@
 #define SELECT_TIMEOUT_SEC 10
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #define MEMFD_FILE_NAME "dmabuf"
-#define UDMABUF_DEVICE_NAME "/dev/udmabufx"
+#define UDMABUF_DEVICE_NAME "/dev/udmabuf"
 #define IS_POWER_OF_TWO(x) (((x) & ((x) - 1)) == 0)
 #define ALIGN(x, a) __ALIGN(x, (a) - 1)
 #define __ALIGN(x, mask) (((x) + (mask)) & ~(mask))
