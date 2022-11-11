@@ -24,12 +24,15 @@ This should give you a file named v4l2-video-capture.
 Several examples:
 
 Capture 5 frames (allocating 3 V4L2_MEMORY_MMAP buffers) from /dev/video0 device
+
     $ v4l2-video-capture -b3 -n5 -mmmap -c /dev/video0
-    
+
 Capture 7 frames (allocating 4 V4L2_MEMORY_USERPTR buffers) from /dev/video0 device
+
     $ v4l2-video-capture -b4 -n7 -muserptr /dev/video0
-    
+
 Capture 9 frames (allocating 5 V4L2_MEMORY_DMABUF buffers) from /dev/video0 device
+
     $ v4l2-video-capture -b5 -n9 -mdmabuf /dev/video0
 
 # NOTE
