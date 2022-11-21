@@ -972,7 +972,7 @@ static uint32_t v4l2_query_capabilities(int fd, uint32_t flags)
                     continue;
 
                 if (selected_format.pixelformat == 0) {
-                    if ((flags ^ fmtdesc.flags) == 0) {
+                    if (flags == fmtdesc.flags) {
                         selected_format.pixelformat = frmsizeenum.pixel_format;
 
                         if (V4L2_FRMSIZE_TYPE_DISCRETE == frmsizeenum.type) {
