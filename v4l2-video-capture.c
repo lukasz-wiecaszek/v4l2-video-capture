@@ -107,7 +107,7 @@ static int v4l2_query_mmap_buffers(int fd, int number_of_buffers, enum v4l2_buf_
 static int v4l2_query_userptr_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
 static int v4l2_query_dma_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type);
 static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
-static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
+static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enum v4l2_memory memory, int verbosity);
 static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
 static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enum v4l2_buf_type buf_type, enum v4l2_memory memory);
 static void v4l2_store_frame(uint32_t fourcc, const struct v4l2_iovec *iov, size_t iovcnt, int counter);
@@ -1341,7 +1341,7 @@ static int v4l2_query_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
     return retval;
 }
 
-static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
+static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enum v4l2_memory memory, int verbosity)
 {
     int retval = -1;
 
@@ -1394,6 +1394,11 @@ static int v4l2_queue_buffer(int fd, int index, enum v4l2_buf_type buf_type, enu
             break;
         }
 
+        if (verbosity > 0) {
+            fprintf(stdout, "VIDIOC_QBUF[%d]:\n", index);
+            v4l2_print_buffer(&buffer);
+        }
+
         retval = 0;
     } while (0);
 
@@ -1409,7 +1414,7 @@ static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
         int status;
 
         for (i = 0; i < number_of_buffers; ++i) {
-            status = v4l2_queue_buffer(fd, i, buf_type, memory);
+            status = v4l2_queue_buffer(fd, i, buf_type, memory, 1);
             if (status)
                 break;
         }
@@ -1489,7 +1494,7 @@ static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enu
             }
         }
 
-        status = v4l2_queue_buffer(fd, index, buf_type, memory);
+        status = v4l2_queue_buffer(fd, index, buf_type, memory, 0);
         if (status) {
             fprintf(stderr, "v4l2_queue_buffer() failed\n");
             break;
