@@ -37,7 +37,7 @@
 /*===========================================================================*\
  * preprocessor #define constants and macros
 \*===========================================================================*/
-#define SELECT_TIMEOUT_SEC 10
+#define SELECT_TIMEOUT_SEC 1
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #define MEMFD_FILE_NAME "dmabuf"
 #define UDMABUF_DEVICE_NAME "/dev/udmabuf"
@@ -1430,7 +1430,7 @@ static int v4l2_queue_buffers(int fd, int number_of_buffers, enum v4l2_buf_type 
 
 static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
-    int retval = -1;
+    int retval = -1; /* -1 marks fatal errors */
 
     do {
         int status;
@@ -1452,7 +1452,8 @@ static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enu
             break;
         } else
         if (0 == status) {
-            fprintf(stderr, "no data within %d seconds, timeout expired\n", SELECT_TIMEOUT_SEC);
+            fprintf(stderr, "no data within %d second(s), timeout expired\n", SELECT_TIMEOUT_SEC);
+            retval = 1; /* threat this as non-fatal error */
             break;
         }
 
@@ -1502,6 +1503,7 @@ static int v4l2_capture_frame(int fd, struct v4l2_iovec *iov, size_t iovcnt, enu
 
         if (flags & V4L2_BUF_FLAG_ERROR) {
             fprintf(stderr, "Received erroneous frame for buffer[%u]\n", index);
+            retval = 1; /* threat this as non-fatal error */
             break;
         }
 
@@ -1555,6 +1557,7 @@ static void v4l2_store_frame(uint32_t fourcc, const struct v4l2_iovec *iov, size
 static int v4l2_video_capture(int fd, int number_of_frames, enum v4l2_buf_type buf_type, enum v4l2_memory memory)
 {
     struct v4l2_iovec iov[VIDEO_MAX_PLANES];
+    int status;
     int i;
 
     if (-1 == ioctl(fd, VIDIOC_STREAMON, &buf_type)) {
@@ -1564,9 +1567,18 @@ static int v4l2_video_capture(int fd, int number_of_frames, enum v4l2_buf_type b
 
     i = 0;
     while (i < number_of_frames) {
-        if (0 == v4l2_capture_frame(fd, iov, ARRAY_SIZE(iov), buf_type, memory)) {
+        status = v4l2_capture_frame(fd, iov, ARRAY_SIZE(iov), buf_type, memory);
+        if (status < 0) {
+            fprintf(stderr, "v4l2_capture_frame() failed\n");
+            break;
+        }
+        else
+        if (status == 0) {
             v4l2_store_frame(selected_format.pixelformat, iov, ARRAY_SIZE(iov), i + 1);
             i++;
+        }
+        else {
+            /* do nothing (try to capture frame again) */
         }
     }
 
